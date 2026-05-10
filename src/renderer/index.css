@@ -88,8 +88,13 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); -web
 .header-time { font-size: 11px; color: var(--text-muted); }
 
 .editor-area { flex: 1; display: flex; overflow: hidden; }
-.chapter-nav { width: 180px; min-width: 180px; background: var(--bg-sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+.chapter-nav { background: var(--bg-sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; transition: width 0.3s cubic-bezier(0.4,0,0.2,1), min-width 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease; }
+.chapter-nav-open { width: 180px; min-width: 180px; opacity: 1; }
+.chapter-nav-closed { width: 0; min-width: 0; opacity: 0; border-right: none; }
 .chapter-nav-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 12px 8px; font-size: 13px; font-weight: 600; }
+.chapter-nav-actions { display: flex; align-items: center; gap: 2px; }
+.chapter-delete-mode-btn { font-size: 12px !important; }
+.chapter-delete-mode-btn.active { color: var(--accent); background: var(--accent-bg); }
 .chapter-add-btn { font-size: 16px !important; font-weight: bold; }
 .chapter-nav-list { flex: 1; overflow-y: auto; padding: 0 6px 12px; }
 .chapter-nav-list::-webkit-scrollbar { width: 3px; }
@@ -99,8 +104,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); -web
 .chapter-nav-item.active { background: var(--bg-card); box-shadow: var(--shadow); }
 .chapter-nav-title { font-size: 12px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chapter-nav-words { font-size: 10px; color: var(--text-muted); white-space: nowrap; }
-.chapter-nav-delete { display: none; background: none; border: none; color: var(--text-muted); font-size: 12px; cursor: pointer; padding: 0 2px; }
-.chapter-nav-item:hover .chapter-nav-delete { display: inline; }
+.chapter-nav-delete { background: none; border: none; color: var(--accent); font-size: 12px; cursor: pointer; padding: 0 2px; }
 .chapter-nav-item:hover .chapter-nav-words { display: none; }
 
 .editor-container { flex: 1; overflow-y: auto; padding: 32px 20px; display: flex; flex-direction: column; align-items: center; }

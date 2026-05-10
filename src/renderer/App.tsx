@@ -16,6 +16,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [chapterNavOpen, setChapterNavOpen] = useState(true)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [deleteMode, setDeleteMode] = useState(false)
   const [title, setTitle] = useState('')
   const [chTitle, setChTitle] = useState('')
   const [isMax, setIsMax] = useState(false)
@@ -81,18 +82,21 @@ export default function App() {
     </header>
   )
 
-  const chapterNav = currentDraft && chapterNavOpen && currentDraft.chapters.length > 0 && (
-    <nav className="chapter-nav">
+  const chapterNav = currentDraft && currentDraft.chapters.length > 0 && (
+    <nav className={`chapter-nav ${chapterNavOpen ? 'chapter-nav-open' : 'chapter-nav-closed'}`}>
       <div className="chapter-nav-header">
         <span>章节</span>
-        <button className="btn-icon chapter-add-btn" onClick={addChapter} title="添加章节">+</button>
+        <div className="chapter-nav-actions">
+          <button className={`btn-icon chapter-delete-mode-btn ${deleteMode ? 'active' : ''}`} onClick={() => setDeleteMode(!deleteMode)} title={deleteMode ? '退出删除模式' : '删除模式'}>🗑</button>
+          <button className="btn-icon chapter-add-btn" onClick={addChapter} title="添加章节">+</button>
+        </div>
       </div>
       <div className="chapter-nav-list">
         {currentDraft.chapters.map((ch) => (
           <div key={ch.id} className={`chapter-nav-item ${currentChapterId === ch.id ? 'active' : ''}`} onClick={() => selectChapter(ch.id)}>
             <span className="chapter-nav-title">{ch.title}</span>
             <span className="chapter-nav-words">{wc(ch.content)}字</span>
-            {currentDraft.chapters.length > 1 && (
+            {deleteMode && currentDraft.chapters.length > 1 && (
               <button className="chapter-nav-delete" onClick={(e) => { e.stopPropagation(); removeChapter(ch.id) }} title="删除章节">×</button>
             )}
           </div>
