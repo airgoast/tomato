@@ -1,6 +1,8 @@
 import { useCallback, useState, useRef, useEffect } from 'react'
 import Sidebar from './components/Sidebar'
 import Editor from './components/Editor'
+import AiSidebar from './components/AiSidebar'
+import SystemPromptPage from './components/SystemPromptPage'
 import { useStore } from './store/draftStore'
 
 function fmtTime(ts: number): string {
@@ -17,9 +19,12 @@ export default function App() {
   const [chapterNavOpen, setChapterNavOpen] = useState(true)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [deleteMode, setDeleteMode] = useState(false)
+  const [aiSidebarOpen, setAiSidebarOpen] = useState(false)
+  const [showSystemPrompt, setShowSystemPrompt] = useState(false)
   const [title, setTitle] = useState('')
   const [chTitle, setChTitle] = useState('')
   const [isMax, setIsMax] = useState(false)
+  const [tick, setTick] = useState(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const curCh = (currentDraft?.chapters || []).find((ch) => ch.id === currentChapterId) ?? null
@@ -35,6 +40,10 @@ export default function App() {
     if (api?.onMenuImport) api.onMenuImport(() => handleImport())
   }, [])
   useEffect(() => { window.api?.isMaximized?.().then(setIsMax) }, [])
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 60000)
+    return () => clearInterval(id)
+  }, [])
 
   const onTitleChange = useCallback((v: string) => {
     setTitle(v)
@@ -75,8 +84,10 @@ export default function App() {
       <div className="header-right">
         <div className="header-actions">
           {currentDraft && <span className="header-words">共 {totalWords} 字</span>}
+          <button className={`btn-icon prompt-btn ${showSystemPrompt ? 'active' : ''}`} onClick={() => setShowSystemPrompt(!showSystemPrompt)} title={showSystemPrompt ? '返回撰写' : '系统提示词'}>📝</button>
+          <button className={`btn-icon ai-btn ${aiSidebarOpen ? 'active' : ''}`} onClick={() => setAiSidebarOpen(!aiSidebarOpen)} title={aiSidebarOpen ? '关闭 AI 助手' : 'AI 助手'}>🤖</button>
           <button className="btn-icon settings-btn" onClick={() => setSettingsOpen(!settingsOpen)} title="设置">⚙</button>
-          {curCh && <span className="header-time">{fmtTime(curCh.updatedAt)}</span>}
+          {curCh && <span className="header-time" key={tick}>{fmtTime(curCh.updatedAt)}</span>}
         </div>
       </div>
     </header>
@@ -147,6 +158,7 @@ export default function App() {
               <button className="btn-primary btn-lg" onClick={() => createDraft()}>写下第一个灵感</button>
             </div>
           </main>
+          <AiSidebar open={aiSidebarOpen} />
         </div>
       </div>
     )
@@ -162,16 +174,23 @@ export default function App() {
           <div className="editor-area">
             {chapterNav}
             <div className="editor-container">
-              <input className="title-input" value={title} onChange={(e) => onTitleChange(e.target.value)} placeholder="给灵感取个名字..." />
-              {curCh && (
+              {showSystemPrompt ? (
+                <SystemPromptPage />
+              ) : (
                 <>
-                  <input className="chapter-title-input" value={chTitle} onChange={(e) => onChTitleChange(e.target.value)} placeholder="章节标题..." />
-                  <Editor content={curCh.content} onChange={onContentChange} placeholder="夜深人静的时候，思绪开始涌动..." />
+                  <input className="title-input" value={title} onChange={(e) => onTitleChange(e.target.value)} placeholder="给灵感取个名字..." />
+                  {curCh && (
+                    <>
+                      <input className="chapter-title-input" value={chTitle} onChange={(e) => onChTitleChange(e.target.value)} placeholder="章节标题..." />
+                      <Editor content={curCh.content} onChange={onContentChange} placeholder="夜深人静的时候，思绪开始涌动..." />
+                    </>
+                  )}
                 </>
               )}
             </div>
           </div>
         </main>
+        <AiSidebar open={aiSidebarOpen} />
       </div>
     </div>
   )

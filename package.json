@@ -30,7 +30,7 @@
     "appId": "com.draftbox.app",
     "productName": "灵感草稿箱",
     "directories": {
-      "output": "release"
+      "output": "release_new"
     },
     "files": [
       "out/**/*",

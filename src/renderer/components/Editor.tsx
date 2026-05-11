@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState, type ChangeEvent } from 'react'
+import { useCallback, useEffect, useState, useRef, type ChangeEvent } from 'react'
+import { useAiStore } from '../store/aiStore'
 
 interface Props {
   content: string
@@ -8,8 +9,24 @@ interface Props {
 
 export default function Editor({ content, onChange, placeholder }: Props) {
   const [value, setValue] = useState(content)
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
+  const [highlightRange, setHighlightRange] = useState<{ start: number; end: number } | null>(null)
+  const { selectedText, setSelectedText } = useAiStore()
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { setValue(content) }, [content])
+
+  useEffect(() => {
+    if (!menu) return
+    const onClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenu(null)
+      }
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [menu])
 
   const handleChange = useCallback(
     (e: ChangeEvent<HTMLTextAreaElement>) => {
@@ -20,15 +37,68 @@ export default function Editor({ content, onChange, placeholder }: Props) {
     [onChange]
   )
 
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    const textarea = textareaRef.current
+    if (!textarea) return
+
+    const sel = textarea.selectionStart !== textarea.selectionEnd
+    if (sel) {
+      setMenu({ x: e.clientX, y: e.clientY })
+    } else {
+      setMenu(null)
+      if (selectedText) {
+        setSelectedText('')
+        setHighlightRange(null)
+      }
+    }
+  }, [selectedText, setSelectedText])
+
+  const handleSelect = useCallback(() => {
+    const textarea = textareaRef.current
+    if (!textarea) return
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    if (start === end) return
+    const text = value.substring(start, end)
+    setSelectedText(text)
+    setHighlightRange({ start, end })
+    setMenu(null)
+  }, [value, setSelectedText])
+
+  const displayValue = highlightRange
+    ? value.substring(0, highlightRange.start) + '\u0016' + value.substring(highlightRange.start, highlightRange.end) + '\u0016' + value.substring(highlightRange.end)
+    : value
+
   return (
     <div className="editor-wrapper">
       <textarea
-        className="editor-textarea"
+        ref={textareaRef}
+        className={`editor-textarea ${highlightRange ? 'editor-has-highlight' : ''}`}
         value={value}
         onChange={handleChange}
+        onContextMenu={handleContextMenu}
         placeholder={placeholder || '在此写下你的灵感...'}
         spellCheck={false}
       />
+      {highlightRange && (
+        <div className="editor-highlight-overlay">
+          <span className="editor-highlight-before">{value.substring(0, highlightRange.start)}</span>
+          <span className="editor-highlight-mark">{value.substring(highlightRange.start, highlightRange.end)}</span>
+          <span className="editor-highlight-after">{value.substring(highlightRange.end)}</span>
+        </div>
+      )}
+      {menu && (
+        <div
+          ref={menuRef}
+          className="editor-context-menu"
+          style={{ left: menu.x, top: menu.y }}
+        >
+          <button className="editor-context-item" onClick={handleSelect}>
+            📌 选中此段
+          </button>
+        </div>
+      )}
     </div>
   )
 }

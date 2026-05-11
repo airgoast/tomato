@@ -39,10 +39,15 @@ export default function Sidebar({ open, onClose }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editVal, setEditVal] = useState('')
   const [delId, setDelId] = useState<string | null>(null)
+  const [tick, setTick] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { loadDrafts() }, [loadDrafts])
   useEffect(() => { if (editingId && inputRef.current) { inputRef.current.focus(); inputRef.current.select() } }, [editingId])
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 60000)
+    return () => clearInterval(id)
+  }, [])
 
   const filtered = searchQuery
     ? drafts.filter((d) => d.title.toLowerCase().includes(searchQuery.toLowerCase()) || (d.chapters || []).some((ch) => ch.content.toLowerCase().includes(searchQuery.toLowerCase())))
@@ -91,7 +96,7 @@ export default function Sidebar({ open, onClose }: Props) {
               <span className="sidebar-item-chapters">{draft.chapters.length}章</span>
             </div>
             <div className="sidebar-item-preview">{preview(draft)}</div>
-            <div className="sidebar-item-time">{fmtTime(draft.updatedAt)}</div>
+            <div className="sidebar-item-time" key={tick}>{fmtTime(draft.updatedAt)}</div>
           </div>
         ))}
       </div>

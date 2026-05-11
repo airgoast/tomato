@@ -6,6 +6,13 @@ export interface Chapter {
   updatedAt: number
 }
 
+export interface SystemPrompt {
+  worldSetting: string
+  characterBuilding: string
+  writingStyle: string
+  plotProgression: string
+}
+
 export interface Draft {
   id: string
   title: string
@@ -13,6 +20,7 @@ export interface Draft {
   createdAt: number
   updatedAt: number
   tags: string[]
+  systemPrompt: SystemPrompt
 }
 
 export interface ElectronAPI {

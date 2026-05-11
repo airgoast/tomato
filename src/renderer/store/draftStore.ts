@@ -52,7 +52,7 @@ export const useStore = create<Store>((set, get) => ({
   createDraft: async () => {
     const now = Date.now()
     const ch: Chapter = { id: uid(), title: '第1章', content: '', createdAt: now, updatedAt: now }
-    const draft: Draft = { id: uid(), title: '未命名灵感', chapters: [ch], createdAt: now, updatedAt: now, tags: [] }
+    const draft: Draft = { id: uid(), title: '未命名灵感', chapters: [ch], createdAt: now, updatedAt: now, tags: [], systemPrompt: { worldSetting: '', characterBuilding: '', writingStyle: '', plotProgression: '' } }
     await saveDraft(draft)
     const drafts = await getAllDrafts()
     set({ drafts, currentDraft: draft, currentChapterId: ch.id })
