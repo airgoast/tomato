@@ -1,11 +1,12 @@
 import { create } from 'zustand'
-import type { SystemPrompt } from '../types/draft'
+import type { SystemPrompt, AiMessage } from '../types/draft'
 
-export interface AiMessage {
+export type { AiMessage }
+
+export interface AiConversation {
   id: string
-  role: 'user' | 'assistant' | 'system'
-  content: string
-  timestamp: number
+  name: string
+  messages: AiMessage[]
 }
 
 export interface AiConfig {
@@ -16,13 +17,19 @@ export interface AiConfig {
   temperature: number
 }
 
+const MAX_CONVERSATIONS = 5
+const API_HISTORY_ROUNDS = 10
+
 interface AiStore {
   config: AiConfig
+  conversations: AiConversation[]
+  currentConversationId: string | null
   messages: AiMessage[]
   loading: boolean
   error: string | null
   systemPromptEnabled: boolean
   selectedText: string
+  configLoaded: boolean
   updateConfig: (updates: Partial<AiConfig>) => void
   sendMessage: (content: string, systemPrompt?: SystemPrompt) => Promise<void>
   clearMessages: () => void
@@ -30,6 +37,10 @@ interface AiStore {
   validateConfig: () => string | null
   toggleSystemPrompt: () => void
   setSelectedText: (text: string) => void
+  loadConfig: () => Promise<void>
+  switchConversation: (id: string) => void
+  addConversation: () => void
+  deleteConversation: (id: string) => void
 }
 
 function uid(): string {
@@ -46,23 +57,45 @@ function buildSystemContent(sp: SystemPrompt): string {
   return `你是一位专业的小说创作助手。以下是当前作品的创作背景信息，请基于这些信息来辅助创作：\n\n${parts.join('\n\n')}`
 }
 
+const defaultConfig: AiConfig = {
+  apiUrl: '',
+  apiKey: '',
+  model: '',
+  maxTokens: 2048,
+  temperature: 0.7,
+}
+
+const defaultConversation: AiConversation = { id: uid(), name: '对话1', messages: [] }
+
 export const useAiStore = create<AiStore>((set, get) => ({
-  config: {
-    apiUrl: '',
-    apiKey: '',
-    model: '',
-    maxTokens: 2048,
-    temperature: 0.7,
-  },
+  config: { ...defaultConfig },
+  conversations: [{ ...defaultConversation }],
+  currentConversationId: defaultConversation.id,
   messages: [],
   loading: false,
   error: null,
   systemPromptEnabled: true,
   selectedText: '',
+  configLoaded: false,
+
+  loadConfig: async () => {
+    try {
+      const json = await window.api.loadAiConfig()
+      const saved = JSON.parse(json)
+      if (saved && typeof saved === 'object') {
+        set({ config: { ...defaultConfig, ...saved }, configLoaded: true })
+      } else {
+        set({ configLoaded: true })
+      }
+    } catch {
+      set({ configLoaded: true })
+    }
+  },
 
   updateConfig: (updates) => {
     const config = { ...get().config, ...updates }
     set({ config })
+    window.api.saveAiConfig(JSON.stringify(config)).catch(() => {})
   },
 
   validateConfig: () => {
@@ -76,6 +109,46 @@ export const useAiStore = create<AiStore>((set, get) => ({
 
   toggleSystemPrompt: () => set((s) => ({ systemPromptEnabled: !s.systemPromptEnabled })),
   setSelectedText: (text) => set({ selectedText: text }),
+
+  switchConversation: (id) => {
+    const { conversations, currentConversationId, messages } = get()
+    const updated = conversations.map((c) =>
+      c.id === currentConversationId ? { ...c, messages: [...messages] } : c
+    )
+    const target = updated.find((c) => c.id === id)
+    if (!target) return
+    set({ conversations: updated, currentConversationId: id, messages: [...target.messages] })
+  },
+
+  addConversation: () => {
+    const { conversations, currentConversationId, messages } = get()
+    if (conversations.length >= MAX_CONVERSATIONS) return
+    const updated = conversations.map((c) =>
+      c.id === currentConversationId ? { ...c, messages: [...messages] } : c
+    )
+    const num = updated.length + 1
+    const newConv: AiConversation = { id: uid(), name: `对话${num}`, messages: [] }
+    set({ conversations: [...updated, newConv], currentConversationId: newConv.id, messages: [] })
+  },
+
+  deleteConversation: (id) => {
+    const { conversations, currentConversationId, messages } = get()
+    if (conversations.length <= 1) return
+    const updated = conversations.map((c) =>
+      c.id === currentConversationId ? { ...c, messages: [...messages] } : c
+    )
+    const remaining = updated.filter((c) => c.id !== id)
+    let newId = currentConversationId
+    let newMsgs: AiMessage[] = []
+    if (currentConversationId === id) {
+      newId = remaining[0].id
+      newMsgs = [...remaining[0].messages]
+    } else {
+      const cur = remaining.find((c) => c.id === currentConversationId)
+      newMsgs = cur ? [...cur.messages] : []
+    }
+    set({ conversations: remaining, currentConversationId: newId, messages: newMsgs })
+  },
 
   sendMessage: async (content: string, systemPrompt?: SystemPrompt) => {
     const { config, validateConfig, systemPromptEnabled, selectedText } = get()
@@ -91,98 +164,68 @@ export const useAiStore = create<AiStore>((set, get) => ({
     }
 
     const userMsg: AiMessage = { id: uid(), role: 'user', content: fullContent, timestamp: Date.now() }
-    set((s) => ({ messages: [...s.messages, userMsg], loading: true, error: null }))
+    const newMessages = [...get().messages, userMsg]
+    set({ messages: newMessages, loading: true, error: null })
 
     const assistantId = uid()
-    const assistantMsg: AiMessage = { id: assistantId, role: 'assistant', content: '', timestamp: Date.now() }
-    set((s) => ({ messages: [...s.messages, assistantMsg] }))
+    set({ messages: [...newMessages, { id: assistantId, role: 'assistant', content: '', timestamp: Date.now() }] })
+
+    const apiMessages: { role: string; content: string }[] = []
+
+    if (systemPromptEnabled && systemPrompt) {
+      const sysContent = buildSystemContent(systemPrompt)
+      if (sysContent) apiMessages.push({ role: 'system', content: sysContent })
+    }
+
+    const historyForApi = newMessages.slice(-(API_HISTORY_ROUNDS * 2))
+    for (const m of historyForApi) {
+      apiMessages.push({ role: m.role, content: m.content })
+    }
+
+    const body = JSON.stringify({
+      model: config.model.trim(),
+      messages: apiMessages,
+      max_tokens: config.maxTokens,
+      temperature: config.temperature,
+      stream: true,
+    })
+
+    let accumulated = ''
+
+    window.api.onAiChunk((delta: string) => {
+      accumulated += delta
+      set((s) => ({ messages: s.messages.map((m) => m.id === assistantId ? { ...m, content: accumulated } : m) }))
+    })
+
+    window.api.onAiDone(() => {
+      set((s) => ({
+        messages: s.messages.map((m) => m.id === assistantId ? { ...m, content: accumulated || '（AI 未返回内容）' } : m),
+        loading: false,
+      }))
+      window.api.removeAiListeners()
+    })
+
+    window.api.onAiError((msg: string) => {
+      set((s) => ({
+        messages: s.messages.map((m) => m.id === assistantId ? { ...m, content: `❌ ${msg}` } : m),
+        error: msg,
+        loading: false,
+      }))
+      window.api.removeAiListeners()
+    })
 
     try {
-      const apiMessages: { role: string; content: string }[] = []
-
-      if (systemPromptEnabled && systemPrompt) {
-        const sysContent = buildSystemContent(systemPrompt)
-        if (sysContent) apiMessages.push({ role: 'system', content: sysContent })
-      }
-
-      const history = get().messages.filter((m) => m.id !== assistantId)
-      for (const m of history) {
-        apiMessages.push({ role: m.role, content: m.content })
-      }
-
-      const response = await fetch(config.apiUrl.trim(), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${config.apiKey.trim()}`,
-        },
-        body: JSON.stringify({
-          model: config.model.trim(),
-          messages: apiMessages,
-          max_tokens: config.maxTokens,
-          temperature: config.temperature,
-          stream: true,
-        }),
-      })
-
-      if (!response.ok) {
-        const errText = await response.text().catch(() => '')
-        throw new Error(`API 请求失败 (${response.status}): ${errText || response.statusText}`)
-      }
-
-      const reader = response.body?.getReader()
-      if (!reader) throw new Error('无法读取响应流')
-
-      const decoder = new TextDecoder()
-      let accumulated = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        const chunk = decoder.decode(value, { stream: true })
-        const lines = chunk.split('\n')
-
-        for (const line of lines) {
-          const trimmed = line.trim()
-          if (!trimmed || !trimmed.startsWith('data:')) continue
-          const data = trimmed.slice(5).trim()
-          if (data === '[DONE]') continue
-
-          try {
-            const json = JSON.parse(data)
-            const delta = json.choices?.[0]?.delta?.content
-            if (delta) {
-              accumulated += delta
-              set((s) => ({
-                messages: s.messages.map((m) =>
-                  m.id === assistantId ? { ...m, content: accumulated } : m
-                ),
-              }))
-            }
-          } catch {
-            continue
-          }
-        }
-      }
-
-      if (!accumulated) {
-        set((s) => ({
-          messages: s.messages.map((m) =>
-            m.id === assistantId ? { ...m, content: '（AI 未返回内容）' } : m
-          ),
-        }))
-      }
+      await window.api.aiChat(config.apiUrl.trim(), config.apiKey.trim(), body)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '未知错误'
-      set((s) => ({
-        messages: s.messages.map((m) =>
-          m.id === assistantId ? { ...m, content: `❌ ${msg}` } : m
-        ),
-        error: msg,
-      }))
-    } finally {
-      set({ loading: false })
+      const msg = err instanceof Error ? err.message : '请求异常'
+      if (get().loading) {
+        set((s) => ({
+          messages: s.messages.map((m) => m.id === assistantId ? { ...m, content: `❌ ${msg}` } : m),
+          error: msg,
+          loading: false,
+        }))
+        window.api.removeAiListeners()
+      }
     }
   },
 

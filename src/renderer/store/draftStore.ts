@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { Draft, Chapter } from '../types/draft'
-import { getAllDrafts, saveDraft, deleteDraft, exportDrafts, importDrafts } from '../lib/db'
+import { getAllDrafts, saveDraft, saveAllDrafts, deleteDraft, exportDrafts, importDrafts, loadAppState, saveAppState, type AppState } from '../lib/db'
 
 function uid(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 9)
@@ -13,12 +13,14 @@ interface Store {
   loading: boolean
   searchQuery: string
   message: string | null
+  appState: AppState
   loadDrafts: () => Promise<void>
   selectDraft: (draft: Draft | null) => void
   selectChapter: (id: string | null) => void
   createDraft: () => Promise<void>
   updateDraft: (updates: Partial<Draft>) => Promise<void>
   removeDraft: (id: string) => Promise<void>
+  moveDraft: (id: string, direction: 'up' | 'down') => Promise<void>
   addChapter: () => Promise<void>
   updateChapter: (id: string, updates: Partial<Chapter>) => Promise<void>
   removeChapter: (id: string) => Promise<void>
@@ -26,6 +28,8 @@ interface Store {
   handleExport: () => Promise<void>
   handleImport: () => Promise<void>
   clearMessage: () => void
+  restoreAppState: () => Promise<AppState>
+  persistAppState: (state: Partial<AppState>) => Promise<void>
 }
 
 export const useStore = create<Store>((set, get) => ({
@@ -35,6 +39,7 @@ export const useStore = create<Store>((set, get) => ({
   loading: false,
   searchQuery: '',
   message: null,
+  appState: { currentDraftId: null, currentChapterId: null, sidebarOpen: true, chapterNavOpen: true, aiSidebarOpen: false, showSystemPrompt: false },
 
   loadDrafts: async () => {
     set({ loading: true })
@@ -72,6 +77,20 @@ export const useStore = create<Store>((set, get) => ({
     const drafts = await getAllDrafts()
     const cur = get().currentDraft
     set({ drafts, currentDraft: cur?.id === id ? null : cur, currentChapterId: cur?.id === id ? null : get().currentChapterId })
+  },
+
+  moveDraft: async (id, direction) => {
+    const { drafts } = get()
+    const idx = drafts.findIndex((d) => d.id === id)
+    if (idx < 0) return
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1
+    if (targetIdx < 0 || targetIdx >= drafts.length) return
+    const newDrafts = [...drafts]
+    const temp = newDrafts[idx]
+    newDrafts[idx] = newDrafts[targetIdx]
+    newDrafts[targetIdx] = temp
+    await saveAllDrafts(newDrafts)
+    set({ drafts: newDrafts })
   },
 
   addChapter: async () => {
@@ -121,4 +140,25 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   clearMessage: () => set({ message: null }),
+
+  restoreAppState: async () => {
+    const saved = await loadAppState()
+    if (!saved) return get().appState
+    set({ appState: saved })
+    if (saved.currentDraftId) {
+      const drafts = await getAllDrafts()
+      const draft = drafts.find((d) => d.id === saved.currentDraftId) ?? null
+      if (draft) {
+        const chId = draft.chapters.some((ch) => ch.id === saved.currentChapterId) ? saved.currentChapterId : (draft.chapters[0]?.id ?? null)
+        set({ currentDraft: draft, currentChapterId: chId })
+      }
+    }
+    return saved
+  },
+
+  persistAppState: async (state) => {
+    const merged = { ...get().appState, ...state }
+    set({ appState: merged })
+    await saveAppState(merged)
+  },
 }))

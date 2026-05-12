@@ -3,15 +3,18 @@ import type { Draft } from '../types/draft'
 const api = window.api
 
 function migrateDraft(raw: any): Draft {
-  if (raw.chapters && Array.isArray(raw.chapters)) return raw as Draft
   const now = raw.updatedAt || raw.createdAt || Date.now()
+  const ch = raw.chapters && Array.isArray(raw.chapters)
+    ? raw.chapters
+    : [{ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 9), title: '第1章', content: raw.content || '', createdAt: now, updatedAt: now }]
   return {
     id: raw.id,
     title: raw.title || '未命名灵感',
-    chapters: [{ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 9), title: '第1章', content: raw.content || '', createdAt: now, updatedAt: now }],
+    chapters: ch,
     createdAt: raw.createdAt || now,
     updatedAt: raw.updatedAt || now,
     tags: raw.tags || [],
+    systemPrompt: raw.systemPrompt || { worldSetting: '', characterBuilding: '', writingStyle: '', plotProgression: '' },
   }
 }
 
@@ -56,4 +59,26 @@ export async function importDrafts(): Promise<number> {
   for (const d of [...imported, ...existing]) map.set(d.id, d)
   await saveAllDrafts(Array.from(map.values()))
   return imported.length
+}
+
+export interface AppState {
+  currentDraftId: string | null
+  currentChapterId: string | null
+  sidebarOpen: boolean
+  chapterNavOpen: boolean
+  aiSidebarOpen: boolean
+  showSystemPrompt: boolean
+}
+
+export async function loadAppState(): Promise<AppState | null> {
+  try {
+    const json = await api.loadAppState()
+    return JSON.parse(json) as AppState
+  } catch {
+    return null
+  }
+}
+
+export async function saveAppState(state: AppState): Promise<void> {
+  await api.saveAppState(JSON.stringify(state))
 }

@@ -1,6 +1,8 @@
 import { app, BrowserWindow, ipcMain, Menu, dialog } from 'electron'
 import { join } from 'path'
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
+import * as https from 'https'
+import * as http from 'http'
 
 let mainWindow: BrowserWindow | null = null
 let isQuitting = false
@@ -13,6 +15,34 @@ function getDataDir(): string {
 
 function getDraftsPath(): string {
   return join(getDataDir(), 'drafts.json')
+}
+
+function getAppStatePath(): string {
+  return join(getDataDir(), 'appState.json')
+}
+
+function getAiConfigPath(): string {
+  return join(getDataDir(), 'aiConfig.json')
+}
+
+function loadAppState(): string {
+  const p = getAppStatePath()
+  if (!existsSync(p)) return '{}'
+  return readFileSync(p, 'utf-8')
+}
+
+function saveAppState(json: string): void {
+  writeFileSync(getAppStatePath(), json, 'utf-8')
+}
+
+function loadAiConfig(): string {
+  const p = getAiConfigPath()
+  if (!existsSync(p)) return '{}'
+  return readFileSync(p, 'utf-8')
+}
+
+function saveAiConfig(json: string): void {
+  writeFileSync(getAiConfigPath(), json, 'utf-8')
 }
 
 function loadDrafts(): string {
@@ -110,12 +140,13 @@ function createWindow(): void {
 }
 
 function forceQuit(): void {
+  if (isQuitting) return
   isQuitting = true
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.destroy()
-    mainWindow = null
-  }
-  app.quit()
+  BrowserWindow.getAllWindows().forEach((w) => {
+    if (!w.isDestroyed()) w.destroy()
+  })
+  mainWindow = null
+  app.exit(0)
 }
 
 app.on('before-quit', (e) => {
@@ -136,6 +167,10 @@ app.whenReady().then(createWindow)
 
 ipcMain.handle('drafts:load', () => loadDrafts())
 ipcMain.handle('drafts:save', (_e, json: string) => { saveDrafts(json); return true })
+ipcMain.handle('appState:load', () => loadAppState())
+ipcMain.handle('appState:save', (_e, json: string) => { saveAppState(json); return true })
+ipcMain.handle('aiConfig:load', () => loadAiConfig())
+ipcMain.handle('aiConfig:save', (_e, json: string) => { saveAiConfig(json); return true })
 
 ipcMain.handle('dialog:saveFile', async () => {
   const result = await dialog.showSaveDialog(mainWindow!, {
@@ -169,3 +204,82 @@ ipcMain.handle('window:maximize', () => {
 })
 ipcMain.handle('window:close', () => forceQuit())
 ipcMain.handle('window:isMaximized', () => mainWindow?.isMaximized())
+
+ipcMain.handle('ai:chat', (event, apiUrl: string, apiKey: string, body: string) => {
+  return new Promise<void>((resolve, reject) => {
+    try {
+      const url = new URL(apiUrl)
+      const isHttps = url.protocol === 'https:'
+      const mod = isHttps ? https : http
+      const options: https.RequestOptions = {
+        hostname: url.hostname,
+        port: url.port || (isHttps ? 443 : 80),
+        path: url.pathname + url.search,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+          'Accept': 'text/event-stream',
+        },
+      }
+
+      const req = mod.request(options, (res) => {
+        if (res.statusCode && res.statusCode >= 400) {
+          let errBody = ''
+          res.on('data', (c: Buffer) => { errBody += c.toString() })
+          res.on('end', () => {
+            event.sender.send('ai:error', `API 请求失败 (${res.statusCode}): ${errBody || res.statusMessage}`)
+            reject(new Error(`HTTP ${res.statusCode}`))
+          })
+          return
+        }
+
+        let buffer = ''
+        res.on('data', (chunk: Buffer) => {
+          buffer += chunk.toString()
+          const lines = buffer.split('\n')
+          buffer = lines.pop() || ''
+
+          for (const line of lines) {
+            const trimmed = line.trim()
+            if (!trimmed || !trimmed.startsWith('data:')) continue
+            const data = trimmed.slice(5).trim()
+            if (data === '[DONE]') {
+              event.sender.send('ai:done')
+              continue
+            }
+            try {
+              const json = JSON.parse(data)
+              const delta = json.choices?.[0]?.delta?.content
+              if (delta) {
+                event.sender.send('ai:chunk', delta)
+              }
+            } catch { continue }
+          }
+        })
+
+        res.on('end', () => {
+          event.sender.send('ai:done')
+          resolve()
+        })
+
+        res.on('error', (err: Error) => {
+          event.sender.send('ai:error', err.message)
+          reject(err)
+        })
+      })
+
+      req.on('error', (err: Error) => {
+        event.sender.send('ai:error', err.message)
+        reject(err)
+      })
+
+      req.write(body)
+      req.end()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '请求异常'
+      event.sender.send('ai:error', msg)
+      reject(err)
+    }
+  })
+})

@@ -37,6 +37,34 @@ export default function Editor({ content, onChange, placeholder }: Props) {
     [onChange]
   )
 
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const textarea = textareaRef.current
+    if (!textarea) return
+    if (e.key === 'Tab') {
+      e.preventDefault()
+      const start = textarea.selectionStart
+      const end = textarea.selectionEnd
+      const indent = '\u3000\u3000'
+      const newValue = value.substring(0, start) + indent + value.substring(end)
+      setValue(newValue)
+      onChange(newValue)
+      requestAnimationFrame(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + indent.length
+      })
+    } else if (e.key === ' ') {
+      e.preventDefault()
+      const start = textarea.selectionStart
+      const end = textarea.selectionEnd
+      const space = '\u3000'
+      const newValue = value.substring(0, start) + space + value.substring(end)
+      setValue(newValue)
+      onChange(newValue)
+      requestAnimationFrame(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + space.length
+      })
+    }
+  }, [value, onChange])
+
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
     const textarea = textareaRef.current
@@ -77,6 +105,7 @@ export default function Editor({ content, onChange, placeholder }: Props) {
         className={`editor-textarea ${highlightRange ? 'editor-has-highlight' : ''}`}
         value={value}
         onChange={handleChange}
+        onKeyDown={handleKeyDown}
         onContextMenu={handleContextMenu}
         placeholder={placeholder || '在此写下你的灵感...'}
         spellCheck={false}

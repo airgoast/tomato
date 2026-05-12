@@ -35,11 +35,13 @@ interface Props {
 }
 
 export default function Sidebar({ open, onClose }: Props) {
-  const { drafts, currentDraft, searchQuery, loadDrafts, selectDraft, createDraft, removeDraft, setSearchQuery } = useStore()
+  const { drafts, currentDraft, searchQuery, loadDrafts, selectDraft, createDraft, removeDraft, moveDraft, setSearchQuery } = useStore()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editVal, setEditVal] = useState('')
   const [delId, setDelId] = useState<string | null>(null)
   const [tick, setTick] = useState(0)
+  const [animId, setAnimId] = useState<string | null>(null)
+  const [animDir, setAnimDir] = useState<'up' | 'down' | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { loadDrafts() }, [loadDrafts])
@@ -74,15 +76,19 @@ export default function Sidebar({ open, onClose }: Props) {
       <div className="sidebar-list">
         {filtered.length === 0 ? (
           <div className="sidebar-empty">{searchQuery ? '没有找到匹配的灵感' : '还没有灵感，点击上方按钮记录一个吧'}</div>
-        ) : filtered.map((draft) => (
-          <div key={draft.id} className={`sidebar-item ${currentDraft?.id === draft.id ? 'active' : ''}`} onClick={() => selectDraft(draft)}>
+        ) : filtered.map((draft, idx) => (
+          <div key={draft.id} className={`sidebar-item ${currentDraft?.id === draft.id ? 'active' : ''} ${animId === draft.id ? `sidebar-item-move-${animDir}` : ''}`} onClick={() => selectDraft(draft)}>
             <div className="sidebar-item-top">
               {editingId === draft.id ? (
                 <input ref={inputRef} className="sidebar-item-edit" value={editVal} onChange={(e) => setEditVal(e.target.value)} onBlur={handleRename} onKeyDown={(e) => { if (e.key === 'Enter') handleRename(); if (e.key === 'Escape') setEditingId(null) }} onClick={(e) => e.stopPropagation()} />
               ) : (
                 <span className="sidebar-item-title" onDoubleClick={(e) => { e.stopPropagation(); setEditingId(draft.id); setEditVal(draft.title) }}>{draft.title}</span>
               )}
-              <button className="btn-icon btn-delete" onClick={(e) => { e.stopPropagation(); setDelId(delId === draft.id ? null : draft.id) }} title="删除">🗑</button>
+              <div className="sidebar-item-actions">
+                <button className="btn-icon btn-move" disabled={idx === 0} onClick={(e) => { e.stopPropagation(); setAnimId(draft.id); setAnimDir('up'); moveDraft(draft.id, 'up'); setTimeout(() => { setAnimId(null); setAnimDir(null) }, 300) }} title="上移">↑</button>
+                <button className="btn-icon btn-move" disabled={idx === filtered.length - 1} onClick={(e) => { e.stopPropagation(); setAnimId(draft.id); setAnimDir('down'); moveDraft(draft.id, 'down'); setTimeout(() => { setAnimId(null); setAnimDir(null) }, 300) }} title="下移">↓</button>
+                <button className="btn-icon btn-delete" onClick={(e) => { e.stopPropagation(); setDelId(delId === draft.id ? null : draft.id) }} title="删除">🗑</button>
+              </div>
             </div>
             {delId === draft.id && (
               <div className="delete-confirm">

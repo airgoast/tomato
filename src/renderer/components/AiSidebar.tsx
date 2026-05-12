@@ -7,9 +7,9 @@ interface Props {
 }
 
 export default function AiSidebar({ open }: Props) {
-  const { config, messages, loading, error, systemPromptEnabled, selectedText, updateConfig, sendMessage, clearMessages, clearError, toggleSystemPrompt, setSelectedText } = useAiStore()
+  const { config, messages, loading, error, systemPromptEnabled, selectedText, conversations, currentConversationId, updateConfig, sendMessage, clearMessages, clearError, toggleSystemPrompt, setSelectedText, switchConversation, addConversation, deleteConversation } = useAiStore()
   const { currentDraft } = useStore()
-  const [configOpen, setConfigOpen] = useState(true)
+  const [configOpen, setConfigOpen] = useState(false)
   const [inputOpen, setInputOpen] = useState(true)
   const [input, setInput] = useState('')
   const [width, setWidth] = useState(320)
@@ -103,13 +103,23 @@ export default function AiSidebar({ open }: Props) {
 
         <div className="ai-divider" />
 
-        <div className="ai-messages-section">
-          <div className="ai-messages-header">
-            <span>AI 输出</span>
-            {messages.length > 0 && (
-              <button className="btn-icon ai-clear-btn" onClick={clearMessages} title="清空对话">🗑</button>
-            )}
+        <div className="ai-conversations-bar">
+          <div className="ai-conv-tabs">
+            {conversations.map((conv) => (
+              <div key={conv.id} className={`ai-conv-tab ${conv.id === currentConversationId ? 'ai-conv-tab-active' : ''}`} onClick={() => switchConversation(conv.id)}>
+                <span className="ai-conv-tab-name">{conv.name}</span>
+                {conversations.length > 1 && (
+                  <button className="ai-conv-tab-close" onClick={(e) => { e.stopPropagation(); deleteConversation(conv.id) }}>✕</button>
+                )}
+              </div>
+            ))}
           </div>
+          {conversations.length < 5 && (
+            <button className="ai-conv-add" onClick={addConversation} title="新建对话">+</button>
+          )}
+        </div>
+
+        <div className="ai-messages-section">
           <div className="ai-messages-list">
             {messages.length === 0 ? (
               <div className="ai-messages-empty">配置 API 后，在此与 AI 对话辅助创作</div>

@@ -1,3 +1,10 @@
+export interface AiMessage {
+  id: string
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  timestamp: number
+}
+
 export interface Chapter {
   id: string
   title: string
@@ -37,6 +44,15 @@ export interface ElectronAPI {
   onMenuNew: (cb: () => void) => void
   onMenuExport: (cb: () => void) => void
   onMenuImport: (cb: () => void) => void
+  loadAppState: () => Promise<string>
+  saveAppState: (json: string) => Promise<boolean>
+  loadAiConfig: () => Promise<string>
+  saveAiConfig: (json: string) => Promise<boolean>
+  aiChat: (apiUrl: string, apiKey: string, body: string) => Promise<void>
+  onAiChunk: (cb: (delta: string) => void) => void
+  onAiDone: (cb: () => void) => void
+  onAiError: (cb: (msg: string) => void) => void
+  removeAiListeners: () => void
 }
 
 declare global {

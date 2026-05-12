@@ -4,6 +4,7 @@ import Editor from './components/Editor'
 import AiSidebar from './components/AiSidebar'
 import SystemPromptPage from './components/SystemPromptPage'
 import { useStore } from './store/draftStore'
+import { useAiStore } from './store/aiStore'
 
 function fmtTime(ts: number): string {
   return new Date(ts).toLocaleString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
@@ -14,7 +15,8 @@ function wc(text: string): number {
 }
 
 export default function App() {
-  const { currentDraft, currentChapterId, updateDraft, createDraft, addChapter, updateChapter, removeChapter, selectChapter, handleExport, handleImport, message, clearMessage } = useStore()
+  const { currentDraft, currentChapterId, updateDraft, createDraft, addChapter, updateChapter, removeChapter, selectChapter, handleExport, handleImport, message, clearMessage, restoreAppState, persistAppState } = useStore()
+  const { loadConfig } = useAiStore()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [chapterNavOpen, setChapterNavOpen] = useState(true)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -25,10 +27,24 @@ export default function App() {
   const [chTitle, setChTitle] = useState('')
   const [isMax, setIsMax] = useState(false)
   const [tick, setTick] = useState(0)
+  const [restored, setRestored] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const curCh = (currentDraft?.chapters || []).find((ch) => ch.id === currentChapterId) ?? null
   const totalWords = currentDraft ? (currentDraft.chapters || []).reduce((s, ch) => s + wc(ch.content), 0) : 0
+
+  useEffect(() => {
+    restoreAppState().then((saved) => {
+      if (saved) {
+        setSidebarOpen(saved.sidebarOpen)
+        setChapterNavOpen(saved.chapterNavOpen)
+        setAiSidebarOpen(saved.aiSidebarOpen)
+        setShowSystemPrompt(saved.showSystemPrompt)
+      }
+      setRestored(true)
+    })
+    loadConfig()
+  }, [])
 
   useEffect(() => { if (currentDraft) setTitle(currentDraft.title) }, [currentDraft?.id])
   useEffect(() => { if (curCh) setChTitle(curCh.title) }, [currentChapterId])
@@ -44,6 +60,18 @@ export default function App() {
     const id = setInterval(() => setTick((t) => t + 1), 60000)
     return () => clearInterval(id)
   }, [])
+
+  useEffect(() => {
+    if (!restored) return
+    persistAppState({
+      currentDraftId: currentDraft?.id ?? null,
+      currentChapterId,
+      sidebarOpen,
+      chapterNavOpen,
+      aiSidebarOpen,
+      showSystemPrompt,
+    })
+  }, [restored, currentDraft?.id, currentChapterId, sidebarOpen, chapterNavOpen, aiSidebarOpen, showSystemPrompt, persistAppState])
 
   const onTitleChange = useCallback((v: string) => {
     setTitle(v)
