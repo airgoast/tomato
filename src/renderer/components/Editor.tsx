@@ -15,8 +15,43 @@ export default function Editor({ content, onChange, placeholder, fontSize = 16 }
   const { selectedText, setSelectedText } = useAiStore()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => { setValue(content) }, [content])
+
+  useEffect(() => {
+    const textarea = textareaRef.current
+    if (!textarea) return
+    const show = () => {
+      textarea.classList.add('scroll-visible')
+      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current)
+      scrollTimerRef.current = setTimeout(() => {
+        textarea.classList.remove('scroll-visible')
+      }, 1000)
+    }
+    const onScroll = () => { show() }
+    const onMouseMove = (e: MouseEvent) => {
+      const rect = textarea.getBoundingClientRect()
+      if (rect.right - e.clientX < 15) {
+        show()
+      }
+    }
+    const onMouseLeave = () => {
+      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current)
+      scrollTimerRef.current = setTimeout(() => {
+        textarea.classList.remove('scroll-visible')
+      }, 1000)
+    }
+    textarea.addEventListener('scroll', onScroll)
+    textarea.addEventListener('mousemove', onMouseMove)
+    textarea.addEventListener('mouseleave', onMouseLeave)
+    return () => {
+      textarea.removeEventListener('scroll', onScroll)
+      textarea.removeEventListener('mousemove', onMouseMove)
+      textarea.removeEventListener('mouseleave', onMouseLeave)
+      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     if (!menu) return

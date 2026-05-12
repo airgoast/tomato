@@ -34,8 +34,6 @@ export default function App() {
   const [editorFontSize, setEditorFontSize] = useState(16)
   const [aiFontSize, setAiFontSize] = useState(12)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const editorContainerRef = useRef<HTMLDivElement>(null)
-  const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const curCh = (currentDraft?.chapters || []).find((ch) => ch.id === currentChapterId) ?? null
   const totalWords = currentDraft ? (currentDraft.chapters || []).reduce((s, ch) => s + wc(ch.content), 0) : 0
@@ -70,23 +68,6 @@ export default function App() {
     const id = setInterval(() => setTick((t) => t + 1), 60000)
     return () => clearInterval(id)
   }, [])
-
-  useEffect(() => {
-    const el = editorContainerRef.current
-    if (!el) return
-    const onScroll = () => {
-      el.classList.add('scrolling')
-      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current)
-      scrollTimerRef.current = setTimeout(() => {
-        el.classList.remove('scrolling')
-      }, 3000)
-    }
-    el.addEventListener('scroll', onScroll)
-    return () => {
-      el.removeEventListener('scroll', onScroll)
-      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current)
-    }
-  }, [currentDraft])
 
   useEffect(() => {
     if (!restored) return
@@ -238,7 +219,7 @@ export default function App() {
           {header}{settingsPanel}{toast}
           <div className="editor-area">
             {chapterNav}
-            <div className="editor-container" ref={editorContainerRef}>
+            <div className="editor-container">
               {showSystemPrompt ? (
                 <SystemPromptPage />
               ) : (
