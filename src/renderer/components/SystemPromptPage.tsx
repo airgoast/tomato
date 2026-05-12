@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useStore } from '../store/draftStore'
 import type { SystemPrompt as SystemPromptType } from '../types/draft'
 
@@ -15,6 +15,10 @@ export default function SystemPromptPage() {
   const [localValues, setLocalValues] = useState<SystemPromptType>(
     currentDraft?.systemPrompt || { worldSetting: '', characterBuilding: '', writingStyle: '', plotProgression: '' }
   )
+
+  useEffect(() => {
+    setLocalValues(currentDraft?.systemPrompt || { worldSetting: '', characterBuilding: '', writingStyle: '', plotProgression: '' })
+  }, [currentDraft?.id])
 
   const onChange = useCallback((key: keyof SystemPromptType, value: string) => {
     setLocalValues((prev) => ({ ...prev, [key]: value }))
