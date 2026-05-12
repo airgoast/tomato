@@ -25,6 +25,10 @@ function getAiConfigPath(): string {
   return join(getDataDir(), 'aiConfig.json')
 }
 
+function getAiConversationsPath(): string {
+  return join(getDataDir(), 'aiConversations.json')
+}
+
 function loadAppState(): string {
   const p = getAppStatePath()
   if (!existsSync(p)) return '{}'
@@ -43,6 +47,16 @@ function loadAiConfig(): string {
 
 function saveAiConfig(json: string): void {
   writeFileSync(getAiConfigPath(), json, 'utf-8')
+}
+
+function loadAiConversations(): string {
+  const p = getAiConversationsPath()
+  if (!existsSync(p)) return '[]'
+  return readFileSync(p, 'utf-8')
+}
+
+function saveAiConversations(json: string): void {
+  writeFileSync(getAiConversationsPath(), json, 'utf-8')
 }
 
 function loadDrafts(): string {
@@ -171,6 +185,8 @@ ipcMain.handle('appState:load', () => loadAppState())
 ipcMain.handle('appState:save', (_e, json: string) => { saveAppState(json); return true })
 ipcMain.handle('aiConfig:load', () => loadAiConfig())
 ipcMain.handle('aiConfig:save', (_e, json: string) => { saveAiConfig(json); return true })
+ipcMain.handle('aiConversations:load', () => loadAiConversations())
+ipcMain.handle('aiConversations:save', (_e, json: string) => { saveAiConversations(json); return true })
 
 ipcMain.handle('dialog:saveFile', async () => {
   const result = await dialog.showSaveDialog(mainWindow!, {

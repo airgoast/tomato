@@ -5,9 +5,10 @@ interface Props {
   content: string
   onChange: (val: string) => void
   placeholder?: string
+  fontSize?: number
 }
 
-export default function Editor({ content, onChange, placeholder }: Props) {
+export default function Editor({ content, onChange, placeholder, fontSize = 16 }: Props) {
   const [value, setValue] = useState(content)
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const [highlightRange, setHighlightRange] = useState<{ start: number; end: number } | null>(null)
@@ -109,9 +110,10 @@ export default function Editor({ content, onChange, placeholder }: Props) {
         onContextMenu={handleContextMenu}
         placeholder={placeholder || '在此写下你的灵感...'}
         spellCheck={false}
+        style={{ fontSize }}
       />
       {highlightRange && (
-        <div className="editor-highlight-overlay">
+        <div className="editor-highlight-overlay" style={{ fontSize }}>
           <span className="editor-highlight-before">{value.substring(0, highlightRange.start)}</span>
           <span className="editor-highlight-mark">{value.substring(highlightRange.start, highlightRange.end)}</span>
           <span className="editor-highlight-after">{value.substring(highlightRange.end)}</span>

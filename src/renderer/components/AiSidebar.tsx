@@ -2,11 +2,15 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useAiStore } from '../store/aiStore'
 import { useStore } from '../store/draftStore'
 
+const AI_FONT_SIZES = [12, 13, 14, 15, 16]
+
 interface Props {
   open: boolean
+  fontSize: number
+  onFontSizeChange: (size: number) => void
 }
 
-export default function AiSidebar({ open }: Props) {
+export default function AiSidebar({ open, fontSize, onFontSizeChange }: Props) {
   const { config, messages, loading, error, systemPromptEnabled, selectedText, conversations, currentConversationId, updateConfig, sendMessage, clearMessages, clearError, toggleSystemPrompt, setSelectedText, switchConversation, addConversation, deleteConversation } = useAiStore()
   const { currentDraft } = useStore()
   const [configOpen, setConfigOpen] = useState(false)
@@ -17,6 +21,8 @@ export default function AiSidebar({ open }: Props) {
   const dragging = useRef(false)
   const startX = useRef(0)
   const startW = useRef(0)
+
+  const fontIdx = AI_FONT_SIZES.indexOf(fontSize)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -117,6 +123,10 @@ export default function AiSidebar({ open }: Props) {
           {conversations.length < 5 && (
             <button className="ai-conv-add" onClick={addConversation} title="新建对话">+</button>
           )}
+          <div className="ai-font-control">
+            <button className="ai-font-btn" onClick={() => onFontSizeChange(AI_FONT_SIZES[Math.max(0, fontIdx - 1)])} disabled={fontIdx <= 0} title="缩小字体">A-</button>
+            <button className="ai-font-btn" onClick={() => onFontSizeChange(AI_FONT_SIZES[Math.min(AI_FONT_SIZES.length - 1, fontIdx + 1)])} disabled={fontIdx >= AI_FONT_SIZES.length - 1} title="放大字体">A+</button>
+          </div>
         </div>
 
         <div className="ai-messages-section">
@@ -125,7 +135,7 @@ export default function AiSidebar({ open }: Props) {
               <div className="ai-messages-empty">配置 API 后，在此与 AI 对话辅助创作</div>
             ) : (
               messages.map((msg) => (
-                <div key={msg.id} className={`ai-message ai-message-${msg.role}`}>
+                <div key={msg.id} className={`ai-message ai-message-${msg.role}`} style={{ fontSize }}>
                   <div className="ai-message-role">{msg.role === 'user' ? '你' : 'AI'}</div>
                   <div className="ai-message-content">{msg.content || (loading && msg.role === 'assistant' ? '...' : '')}</div>
                 </div>

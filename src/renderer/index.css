@@ -14,7 +14,7 @@
   --shadow-lg: 0 10px 25px rgba(0,0,0,0.08);
   --r: 12px;
   --rs: 8px;
-  --mw: 720px;
+  --mw: 880px;
   --font: 'Noto Serif SC', 'Georgia', serif;
   --tb-h: 32px;
 }
@@ -116,7 +116,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); -web
 .chapter-nav-delete { background: none; border: none; color: var(--accent); font-size: 12px; cursor: pointer; padding: 0 2px; }
 .chapter-nav-item:hover .chapter-nav-words { display: none; }
 
-.editor-container { flex: 1; overflow-y: auto; padding: 32px 20px; display: flex; flex-direction: column; align-items: center; }
+.editor-container { flex: 1; overflow-y: auto; padding: 24px 16px; display: flex; flex-direction: column; align-items: center; }
 .editor-container::-webkit-scrollbar { width: 5px; }
 .editor-container::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 .title-input { width: 100%; max-width: var(--mw); font-family: var(--font); font-size: 26px; font-weight: 700; color: var(--text); background: transparent; border: none; outline: none; padding: 0 0 12px; margin-bottom: 8px; border-bottom: 2px solid transparent; transition: border-color 0.15s; letter-spacing: 1px; }
@@ -253,3 +253,13 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); -web
 .editor-context-item:hover { background: var(--bg-hover); }
 .editor-highlight-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; padding: 0; overflow: hidden; font-family: var(--font); font-size: 16px; line-height: 1.9; letter-spacing: 0.3px; color: transparent; white-space: pre-wrap; word-wrap: break-word; }
 .editor-highlight-mark { background: rgba(192, 57, 43, 0.12); border-radius: 2px; color: transparent; }
+
+.font-size-control { display: flex; align-items: center; gap: 2px; }
+.font-btn { font-size: 11px !important; font-weight: 600; padding: 1px 4px !important; }
+.font-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.font-size-label { font-size: 10px; color: var(--text-muted); min-width: 18px; text-align: center; font-weight: 500; }
+
+.ai-font-control { display: flex; align-items: center; gap: 1px; flex-shrink: 0; margin-left: auto; }
+.ai-font-btn { background: none; border: none; cursor: pointer; color: var(--text-sec); font-size: 10px; font-weight: 600; padding: 1px 3px; border-radius: 2px; transition: color 0.15s, background 0.15s; }
+.ai-font-btn:hover:not(:disabled) { color: var(--accent); background: var(--accent-bg); }
+.ai-font-btn:disabled { opacity: 0.3; cursor: not-allowed; }

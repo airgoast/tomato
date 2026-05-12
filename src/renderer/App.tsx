@@ -6,6 +6,9 @@ import SystemPromptPage from './components/SystemPromptPage'
 import { useStore } from './store/draftStore'
 import { useAiStore } from './store/aiStore'
 
+const EDITOR_FONT_SIZES = [16, 18, 20]
+const AI_FONT_SIZES = [12, 13, 14, 15, 16]
+
 function fmtTime(ts: number): string {
   return new Date(ts).toLocaleString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
 }
@@ -16,7 +19,7 @@ function wc(text: string): number {
 
 export default function App() {
   const { currentDraft, currentChapterId, updateDraft, createDraft, addChapter, updateChapter, removeChapter, selectChapter, handleExport, handleImport, message, clearMessage, restoreAppState, persistAppState } = useStore()
-  const { loadConfig } = useAiStore()
+  const { loadConfig, loadConversations } = useAiStore()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [chapterNavOpen, setChapterNavOpen] = useState(true)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -28,6 +31,8 @@ export default function App() {
   const [isMax, setIsMax] = useState(false)
   const [tick, setTick] = useState(0)
   const [restored, setRestored] = useState(false)
+  const [editorFontSize, setEditorFontSize] = useState(16)
+  const [aiFontSize, setAiFontSize] = useState(12)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const curCh = (currentDraft?.chapters || []).find((ch) => ch.id === currentChapterId) ?? null
@@ -40,10 +45,13 @@ export default function App() {
         setChapterNavOpen(saved.chapterNavOpen)
         setAiSidebarOpen(saved.aiSidebarOpen)
         setShowSystemPrompt(saved.showSystemPrompt)
+        if (saved.editorFontSize) setEditorFontSize(saved.editorFontSize)
+        if (saved.aiFontSize) setAiFontSize(saved.aiFontSize)
       }
       setRestored(true)
     })
     loadConfig()
+    loadConversations()
   }, [])
 
   useEffect(() => { if (currentDraft) setTitle(currentDraft.title) }, [currentDraft?.id])
@@ -70,8 +78,10 @@ export default function App() {
       chapterNavOpen,
       aiSidebarOpen,
       showSystemPrompt,
+      editorFontSize,
+      aiFontSize,
     })
-  }, [restored, currentDraft?.id, currentChapterId, sidebarOpen, chapterNavOpen, aiSidebarOpen, showSystemPrompt, persistAppState])
+  }, [restored, currentDraft?.id, currentChapterId, sidebarOpen, chapterNavOpen, aiSidebarOpen, showSystemPrompt, editorFontSize, aiFontSize, persistAppState])
 
   const onTitleChange = useCallback((v: string) => {
     setTitle(v)
@@ -91,6 +101,9 @@ export default function App() {
     if (timerRef.current) clearTimeout(timerRef.current)
     timerRef.current = setTimeout(() => updateChapter(currentChapterId, { content }), 500)
   }, [currentChapterId, updateChapter])
+
+  const editorFontIdx = EDITOR_FONT_SIZES.indexOf(editorFontSize)
+  const aiFontIdx = AI_FONT_SIZES.indexOf(aiFontSize)
 
   const titleBar = (
     <div className="titlebar">
@@ -112,6 +125,11 @@ export default function App() {
       <div className="header-right">
         <div className="header-actions">
           {currentDraft && <span className="header-words">共 {totalWords} 字</span>}
+          <div className="font-size-control">
+            <button className="btn-icon font-btn" onClick={() => setEditorFontSize(EDITOR_FONT_SIZES[Math.max(0, editorFontIdx - 1)])} disabled={editorFontIdx <= 0} title="缩小字体">A-</button>
+            <span className="font-size-label">{editorFontSize}</span>
+            <button className="btn-icon font-btn" onClick={() => setEditorFontSize(EDITOR_FONT_SIZES[Math.min(EDITOR_FONT_SIZES.length - 1, editorFontIdx + 1)])} disabled={editorFontIdx >= EDITOR_FONT_SIZES.length - 1} title="放大字体">A+</button>
+          </div>
           <button className={`btn-icon prompt-btn ${showSystemPrompt ? 'active' : ''}`} onClick={() => setShowSystemPrompt(!showSystemPrompt)} title={showSystemPrompt ? '返回撰写' : '系统提示词'}>📝</button>
           <button className={`btn-icon ai-btn ${aiSidebarOpen ? 'active' : ''}`} onClick={() => setAiSidebarOpen(!aiSidebarOpen)} title={aiSidebarOpen ? '关闭 AI 助手' : 'AI 助手'}>🤖</button>
           <button className="btn-icon settings-btn" onClick={() => setSettingsOpen(!settingsOpen)} title="设置">⚙</button>
@@ -186,7 +204,7 @@ export default function App() {
               <button className="btn-primary btn-lg" onClick={() => createDraft()}>写下第一个灵感</button>
             </div>
           </main>
-          <AiSidebar open={aiSidebarOpen} />
+          <AiSidebar open={aiSidebarOpen} fontSize={aiFontSize} onFontSizeChange={setAiFontSize} />
         </div>
       </div>
     )
@@ -210,7 +228,7 @@ export default function App() {
                   {curCh && (
                     <>
                       <input className="chapter-title-input" value={chTitle} onChange={(e) => onChTitleChange(e.target.value)} placeholder="章节标题..." />
-                      <Editor content={curCh.content} onChange={onContentChange} placeholder="夜深人静的时候，思绪开始涌动..." />
+                      <Editor content={curCh.content} onChange={onContentChange} placeholder="夜深人静的时候，思绪开始涌动..." fontSize={editorFontSize} />
                     </>
                   )}
                 </>
@@ -218,7 +236,7 @@ export default function App() {
             </div>
           </div>
         </main>
-        <AiSidebar open={aiSidebarOpen} />
+        <AiSidebar open={aiSidebarOpen} fontSize={aiFontSize} onFontSizeChange={setAiFontSize} />
       </div>
     </div>
   )

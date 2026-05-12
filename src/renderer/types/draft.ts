@@ -48,6 +48,8 @@ export interface ElectronAPI {
   saveAppState: (json: string) => Promise<boolean>
   loadAiConfig: () => Promise<string>
   saveAiConfig: (json: string) => Promise<boolean>
+  loadAiConversations: () => Promise<string>
+  saveAiConversations: (json: string) => Promise<boolean>
   aiChat: (apiUrl: string, apiKey: string, body: string) => Promise<void>
   onAiChunk: (cb: (delta: string) => void) => void
   onAiDone: (cb: () => void) => void

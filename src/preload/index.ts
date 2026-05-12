@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('api', {
   saveAppState: (json: string) => ipcRenderer.invoke('appState:save', json),
   loadAiConfig: () => ipcRenderer.invoke('aiConfig:load'),
   saveAiConfig: (json: string) => ipcRenderer.invoke('aiConfig:save', json),
+  loadAiConversations: () => ipcRenderer.invoke('aiConversations:load'),
+  saveAiConversations: (json: string) => ipcRenderer.invoke('aiConversations:save', json),
   saveFileDialog: () => ipcRenderer.invoke('dialog:saveFile'),
   openFileDialog: () => ipcRenderer.invoke('dialog:openFile'),
   exportDrafts: (path: string, json: string) => ipcRenderer.invoke('drafts:export', path, json),

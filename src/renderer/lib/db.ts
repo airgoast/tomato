@@ -68,6 +68,8 @@ export interface AppState {
   chapterNavOpen: boolean
   aiSidebarOpen: boolean
   showSystemPrompt: boolean
+  editorFontSize: number
+  aiFontSize: number
 }
 
 export async function loadAppState(): Promise<AppState | null> {

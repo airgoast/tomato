@@ -38,6 +38,7 @@ interface AiStore {
   toggleSystemPrompt: () => void
   setSelectedText: (text: string) => void
   loadConfig: () => Promise<void>
+  loadConversations: () => Promise<void>
   switchConversation: (id: string) => void
   addConversation: () => void
   deleteConversation: (id: string) => void
@@ -67,6 +68,13 @@ const defaultConfig: AiConfig = {
 
 const defaultConversation: AiConversation = { id: uid(), name: '对话1', messages: [] }
 
+function persistConversations(conversations: AiConversation[], currentId: string | null, messages: AiMessage[]) {
+  const updated = conversations.map((c) =>
+    c.id === currentId ? { ...c, messages: [...messages] } : c
+  )
+  window.api.saveAiConversations(JSON.stringify(updated)).catch(() => {})
+}
+
 export const useAiStore = create<AiStore>((set, get) => ({
   config: { ...defaultConfig },
   conversations: [{ ...defaultConversation }],
@@ -89,6 +97,23 @@ export const useAiStore = create<AiStore>((set, get) => ({
       }
     } catch {
       set({ configLoaded: true })
+    }
+  },
+
+  loadConversations: async () => {
+    try {
+      const json = await window.api.loadAiConversations()
+      const saved: AiConversation[] = JSON.parse(json)
+      if (Array.isArray(saved) && saved.length > 0) {
+        const first = saved[0]
+        set({
+          conversations: saved,
+          currentConversationId: first.id,
+          messages: [...first.messages],
+        })
+      }
+    } catch {
+      // keep defaults
     }
   },
 
@@ -118,6 +143,7 @@ export const useAiStore = create<AiStore>((set, get) => ({
     const target = updated.find((c) => c.id === id)
     if (!target) return
     set({ conversations: updated, currentConversationId: id, messages: [...target.messages] })
+    persistConversations(updated, id, [...target.messages])
   },
 
   addConversation: () => {
@@ -128,7 +154,9 @@ export const useAiStore = create<AiStore>((set, get) => ({
     )
     const num = updated.length + 1
     const newConv: AiConversation = { id: uid(), name: `对话${num}`, messages: [] }
-    set({ conversations: [...updated, newConv], currentConversationId: newConv.id, messages: [] })
+    const all = [...updated, newConv]
+    set({ conversations: all, currentConversationId: newConv.id, messages: [] })
+    persistConversations(all, newConv.id, [])
   },
 
   deleteConversation: (id) => {
@@ -148,6 +176,7 @@ export const useAiStore = create<AiStore>((set, get) => ({
       newMsgs = cur ? [...cur.messages] : []
     }
     set({ conversations: remaining, currentConversationId: newId, messages: newMsgs })
+    persistConversations(remaining, newId, newMsgs)
   },
 
   sendMessage: async (content: string, systemPrompt?: SystemPrompt) => {
@@ -198,20 +227,19 @@ export const useAiStore = create<AiStore>((set, get) => ({
     })
 
     window.api.onAiDone(() => {
-      set((s) => ({
-        messages: s.messages.map((m) => m.id === assistantId ? { ...m, content: accumulated || '（AI 未返回内容）' } : m),
-        loading: false,
-      }))
+      const finalMsgs = get().messages.map((m) => m.id === assistantId ? { ...m, content: accumulated || '（AI 未返回内容）' } : m)
+      set({ messages: finalMsgs, loading: false })
       window.api.removeAiListeners()
+      const { conversations, currentConversationId } = get()
+      persistConversations(conversations, currentConversationId, finalMsgs)
     })
 
     window.api.onAiError((msg: string) => {
-      set((s) => ({
-        messages: s.messages.map((m) => m.id === assistantId ? { ...m, content: `❌ ${msg}` } : m),
-        error: msg,
-        loading: false,
-      }))
+      const finalMsgs = get().messages.map((m) => m.id === assistantId ? { ...m, content: `❌ ${msg}` } : m)
+      set({ messages: finalMsgs, error: msg, loading: false })
       window.api.removeAiListeners()
+      const { conversations, currentConversationId } = get()
+      persistConversations(conversations, currentConversationId, finalMsgs)
     })
 
     try {
@@ -219,16 +247,19 @@ export const useAiStore = create<AiStore>((set, get) => ({
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '请求异常'
       if (get().loading) {
-        set((s) => ({
-          messages: s.messages.map((m) => m.id === assistantId ? { ...m, content: `❌ ${msg}` } : m),
-          error: msg,
-          loading: false,
-        }))
+        const finalMsgs = get().messages.map((m) => m.id === assistantId ? { ...m, content: `❌ ${msg}` } : m)
+        set({ messages: finalMsgs, error: msg, loading: false })
         window.api.removeAiListeners()
+        const { conversations, currentConversationId } = get()
+        persistConversations(conversations, currentConversationId, finalMsgs)
       }
     }
   },
 
-  clearMessages: () => set({ messages: [], error: null }),
+  clearMessages: () => {
+    set({ messages: [], error: null })
+    const { conversations, currentConversationId } = get()
+    persistConversations(conversations, currentConversationId, [])
+  },
   clearError: () => set({ error: null }),
 }))
