@@ -37,7 +37,10 @@ export default function SystemPromptPage() {
       <div className="system-prompt-fields">
         {fields.map((f) => (
           <div key={f.key} className="system-prompt-field">
-            <label className="system-prompt-label">{f.label}</label>
+            <div className="system-prompt-label-row">
+              <label className="system-prompt-label">{f.label}</label>
+              <span className="system-prompt-word-count">{localValues[f.key].replace(/\s/g, '').length}字</span>
+            </div>
             <textarea
               className="system-prompt-textarea"
               placeholder={f.placeholder}

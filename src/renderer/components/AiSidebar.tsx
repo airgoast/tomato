@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { useAiStore } from '../store/aiStore'
 import { useStore } from '../store/draftStore'
+import { marked } from 'marked'
 
 const AI_FONT_SIZES = [12, 13, 14, 15, 16]
 
@@ -137,7 +138,11 @@ export default function AiSidebar({ open, fontSize, onFontSizeChange }: Props) {
               messages.map((msg) => (
                 <div key={msg.id} className={`ai-message ai-message-${msg.role}`} style={{ fontSize }}>
                   <div className="ai-message-role">{msg.role === 'user' ? '你' : 'AI'}</div>
-                  <div className="ai-message-content">{msg.content || (loading && msg.role === 'assistant' ? '...' : '')}</div>
+                  {msg.role === 'assistant' ? (
+                    <div className="ai-message-content ai-message-md" dangerouslySetInnerHTML={{ __html: msg.content ? marked.parse(msg.content) : '' }} />
+                  ) : (
+                    <div className="ai-message-content">{msg.content}</div>
+                  )}
                 </div>
               ))
             )}

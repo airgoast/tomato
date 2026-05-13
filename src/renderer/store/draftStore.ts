@@ -134,8 +134,14 @@ export const useStore = create<Store>((set, get) => ({
 
   handleImport: async () => {
     try {
-      const count = await importDrafts()
-      if (count > 0) { const drafts = await getAllDrafts(); set({ drafts, message: `导入成功！共 ${count} 篇灵感` }) }
+      const { draftCount, convCount } = await importDrafts()
+      if (draftCount > 0 || convCount > 0) {
+        const drafts = await getAllDrafts()
+        const parts: string[] = []
+        if (draftCount > 0) parts.push(`${draftCount} 篇灵感`)
+        if (convCount > 0) parts.push(`${convCount} 条AI对话`)
+        set({ drafts, message: `导入成功！共 ${parts.join('、')}` })
+      }
     } catch { set({ message: '导入失败，请检查文件格式' }) }
   },
 

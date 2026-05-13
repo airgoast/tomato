@@ -44,21 +44,31 @@ export async function deleteDraft(id: string): Promise<void> {
 export async function exportDrafts(): Promise<boolean> {
   const filePath = await api.saveFileDialog()
   if (!filePath) return false
-  const json = await api.loadDrafts()
-  await api.exportDrafts(filePath, json)
+  const draftsJson = await api.loadDrafts()
+  const aiConversationsJson = await api.loadAiConversations()
+  const exportData = JSON.stringify({
+    drafts: JSON.parse(draftsJson),
+    aiConversations: JSON.parse(aiConversationsJson),
+  }, null, 2)
+  await api.exportDrafts(filePath, exportData)
   return true
 }
 
-export async function importDrafts(): Promise<number> {
+export async function importDrafts(): Promise<{ draftCount: number; convCount: number }> {
   const filePath = await api.openFileDialog()
-  if (!filePath) return 0
+  if (!filePath) return { draftCount: 0, convCount: 0 }
   const importedJson = await api.importDrafts(filePath)
-  const imported: Draft[] = JSON.parse(importedJson).map(migrateDraft)
+  const parsed = JSON.parse(importedJson)
+  const importedDrafts: Draft[] = (Array.isArray(parsed) ? parsed : parsed.drafts || []).map(migrateDraft)
+  const importedConversations: any[] = Array.isArray(parsed) ? [] : (parsed.aiConversations || [])
   const existing = await getAllDrafts()
   const map = new Map<string, Draft>()
-  for (const d of [...imported, ...existing]) map.set(d.id, d)
+  for (const d of [...importedDrafts, ...existing]) map.set(d.id, d)
   await saveAllDrafts(Array.from(map.values()))
-  return imported.length
+  if (importedConversations.length > 0) {
+    await api.saveAiConversations(JSON.stringify(importedConversations))
+  }
+  return { draftCount: importedDrafts.length, convCount: importedConversations.length }
 }
 
 export interface AppState {

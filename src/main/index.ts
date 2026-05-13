@@ -191,7 +191,7 @@ ipcMain.handle('aiConversations:save', (_e, json: string) => { saveAiConversatio
 ipcMain.handle('dialog:saveFile', async () => {
   const result = await dialog.showSaveDialog(mainWindow!, {
     filters: [{ name: 'JSON', extensions: ['json'] }],
-    defaultPath: `灵感草稿箱-备份-${new Date().toISOString().slice(0, 10)}.json`,
+    defaultPath: `灵感草稿箱-备份-${new Date().toISOString().slice(0, 10)}-${String(new Date().getHours()).padStart(2, '0')}${String(new Date().getMinutes()).padStart(2, '0')}.json`,
   })
   return result.canceled ? null : result.filePath
 })
