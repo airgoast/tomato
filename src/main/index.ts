@@ -177,7 +177,18 @@ app.on('activate', () => {
   if (mainWindow === null) createWindow()
 })
 
-app.whenReady().then(createWindow)
+const gotTheLock = app.requestSingleInstanceLock()
+if (!gotTheLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.focus()
+    }
+  })
+  app.whenReady().then(createWindow)
+}
 
 ipcMain.handle('drafts:load', () => loadDrafts())
 ipcMain.handle('drafts:save', (_e, json: string) => { saveDrafts(json); return true })
