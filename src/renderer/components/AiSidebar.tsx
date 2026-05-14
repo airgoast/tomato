@@ -105,6 +105,14 @@ export default function AiSidebar({ open, fontSize, onFontSizeChange }: Props) {
                 <input type="number" className="ai-input" step="0.1" min="0" max="2" value={config.temperature} onChange={(e) => updateConfig({ temperature: Number(e.target.value) || 0.7 })} />
               </div>
             </div>
+            <div className="ai-field">
+              <div className="ai-toggle-wrap" onClick={() => updateConfig({ thinkingEnabled: !config.thinkingEnabled })} title={config.thinkingEnabled ? '思考模式已开启（temperature 不生效）' : '思考模式已关闭'}>
+                <span className={`ai-toggle-label ${config.thinkingEnabled ? 'ai-toggle-label-on' : 'ai-toggle-label-off'}`}>{config.thinkingEnabled ? '思考开' : '思考关'}</span>
+                <div className={`ai-toggle ${config.thinkingEnabled ? 'ai-toggle-on' : 'ai-toggle-off'}`}>
+                  <div className="ai-toggle-thumb" />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 

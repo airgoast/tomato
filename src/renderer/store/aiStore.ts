@@ -15,6 +15,7 @@ export interface AiConfig {
   model: string
   maxTokens: number
   temperature: number
+  thinkingEnabled: boolean
 }
 
 const MAX_CONVERSATIONS = 5
@@ -64,6 +65,7 @@ const defaultConfig: AiConfig = {
   model: '',
   maxTokens: 2048,
   temperature: 0.7,
+  thinkingEnabled: false,
 }
 
 const defaultConversation: AiConversation = { id: uid(), name: '对话1', messages: [] }
@@ -152,7 +154,10 @@ export const useAiStore = create<AiStore>((set, get) => ({
     const updated = conversations.map((c) =>
       c.id === currentConversationId ? { ...c, messages: [...messages] } : c
     )
-    const num = updated.length + 1
+    const num = updated.reduce((max, c) => {
+      const m = c.name.match(/^对话(\d+)$/)
+      return m ? Math.max(max, Number(m[1])) : max
+    }, 0) + 1
     const newConv: AiConversation = { id: uid(), name: `对话${num}`, messages: [] }
     const all = [...updated, newConv]
     set({ conversations: all, currentConversationId: newConv.id, messages: [] })
@@ -211,13 +216,18 @@ export const useAiStore = create<AiStore>((set, get) => ({
       apiMessages.push({ role: m.role, content: m.content })
     }
 
-    const body = JSON.stringify({
+    const bodyObj: Record<string, unknown> = {
       model: config.model.trim(),
       messages: apiMessages,
       max_tokens: config.maxTokens,
-      temperature: config.temperature,
       stream: true,
-    })
+    }
+    if (config.thinkingEnabled) {
+      bodyObj.thinking = { type: 'enabled' }
+    } else {
+      bodyObj.temperature = config.temperature
+    }
+    const body = JSON.stringify(bodyObj)
 
     let accumulated = ''
 
